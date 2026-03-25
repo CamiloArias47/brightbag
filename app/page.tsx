@@ -31,56 +31,63 @@ export default async function HomePage() {
   return (
     <div className="flex flex-col">
       <section className="relative overflow-hidden border-b border-border/60">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-2 md:items-center md:py-24">
-          <div>
-            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-              Luminal Elegance
-            </p>
-            <h1 className="mt-4 text-4xl font-semibold tracking-tight md:text-5xl">
-              Visibilidad que se nota de noche.
-            </h1>
-            <p className="mt-6 max-w-lg text-lg text-muted-foreground leading-relaxed">
-              BrightBag combina material reflectivo de alto contraste con un diseño
-              urbano minimalista. Pensado para moverte con seguridad después del
-              atardecer.
-            </p>
-            <div className="mt-10 flex flex-wrap gap-4">
-              <Link
-                href="/producto"
-                className={cn(
-                  buttonVariants({ size: "lg" }),
-                  "btn-luminal-gradient gap-2 px-6 font-semibold"
-                )}
-              >
-                Ver producto
-                <ArrowRight className="size-4" />
-              </Link>
-              <Link
-                href="/contacto"
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "lg" }),
-                  "border-border/80 bg-surface-2/50"
-                )}
-              >
-                Hablar por WhatsApp
-              </Link>
+        <div className="relative min-h-[min(88vh,900px)] w-full bg-black">
+          <Image
+            src={heroImg}
+            alt="BrightBag reflectivo"
+            fill
+            className="object-cover object-center flash-hover"
+            priority
+            sizes="100vw"
+          />
+          <div
+            className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent"
+            aria-hidden
+          />
+          <div className="relative z-10 mx-auto flex min-h-[min(88vh,900px)] max-w-6xl flex-col justify-end px-4 pb-12 pt-24 md:pb-16 md:pt-32">
+            <div className="flex flex-col gap-10 md:flex-row md:items-end md:justify-between md:gap-12">
+              <div>
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  Luminal Elegance
+                </p>
+                <h1 className="mt-4 text-4xl font-semibold tracking-tight md:text-5xl">
+                  Visibilidad que se nota de noche.
+                </h1>
+                <p className="mt-6 max-w-lg text-lg text-muted-foreground leading-relaxed">
+                  BrightBag combina material reflectivo de alto contraste con un diseño
+                  urbano minimalista. Pensado para moverte con seguridad después del
+                  atardecer.
+                </p>
+                {fromPrice != null ? (
+                  <p className="mt-6 text-sm text-muted-foreground md:mt-8">
+                    Desde{" "}
+                    <span className="font-medium text-foreground">{formatCop(fromPrice)}</span>{" "}
+                    COP · Envío nacional
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex shrink-0 flex-col gap-4 md:items-end">
+                <Link
+                  href="/producto"
+                  className={cn(
+                    buttonVariants({ size: "lg" }),
+                    "btn-luminal-gradient gap-2 px-8 font-semibold md:w-auto"
+                  )}
+                >
+                  Ver producto
+                  <ArrowRight className="size-4" />
+                </Link>
+                <Link
+                  href="/contacto"
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "lg" }),
+                    "border-border/80 bg-surface-2/50 md:w-auto"
+                  )}
+                >
+                  Hablar por WhatsApp
+                </Link>
+              </div>
             </div>
-            {fromPrice != null ? (
-              <p className="mt-8 text-sm text-muted-foreground">
-                Desde <span className="font-medium text-foreground">{formatCop(fromPrice)}</span>{" "}
-                COP · Envío nacional
-              </p>
-            ) : null}
-          </div>
-          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl bg-surface-3 ring-1 ring-white/5">
-            <Image
-              src={heroImg}
-              alt="BrightBag reflectivo"
-              fill
-              className="object-cover flash-hover"
-              priority
-              sizes="(max-width: 768px) 100vw, 50vw"
-            />
           </div>
         </div>
       </section>
