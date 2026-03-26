@@ -52,9 +52,11 @@ declare global {
 }
 
 export function openWompiWidget(config: WompiWidgetConfig): void {
+  console.log("openWompiWidget config:", config);
   if (!window.WidgetCheckout) {
     throw new Error("WidgetCheckout no disponible");
   }
+  console.log("openWompiWidget config2:");
   const checkout = new window.WidgetCheckout(config);
   checkout.open(() => {
     /* redirectUrl maneja la vuelta del usuario; el webhook confirma el pago */

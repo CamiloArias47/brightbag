@@ -92,7 +92,7 @@ export function CheckoutView() {
         reference: result.reference,
         publicKey: result.publicKey,
         signature: { integrity: result.integrity },
-        redirectUrl: result.redirectUrl,
+        //redirectUrl: result.redirectUrl,
         customerData: {
           email: values.customerEmail,
           fullName: values.customerName,

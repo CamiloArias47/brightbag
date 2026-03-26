@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Moon, Shield, Zap } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -10,6 +9,7 @@ import { formatCop } from "@/lib/format";
 import { variantPriceCOP } from "@/lib/pricing";
 import { SITE_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { HeroMedia } from "@/components/hero-media";
 
 export const metadata: Metadata = {
   title: `${SITE_NAME} | Bolso reflectivo`,
@@ -32,14 +32,7 @@ export default async function HomePage() {
     <div className="flex flex-col">
       <section className="relative overflow-hidden border-b border-border/60">
         <div className="relative min-h-[min(88vh,900px)] w-full bg-black">
-          <Image
-            src={heroImg}
-            alt="BrightBag reflectivo"
-            fill
-            className="object-cover object-center flash-hover"
-            priority
-            sizes="100vw"
-          />
+          <HeroMedia imageSrc={heroImg} />
           <div
             className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent"
             aria-hidden
