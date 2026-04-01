@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { prepareCheckout } from "@/app/actions/checkout";
+import { useRouter } from "next/navigation";
+import { prepareCheckout, submitCodOrder } from "@/app/actions/checkout";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -27,6 +28,8 @@ import {
 import { cn } from "@/lib/utils";
 import { cartSubtotal, useCartStore } from "@/stores/cart-store";
 
+type PaymentMethod = "wompi" | "cod";
+
 const defaults: CheckoutFormSchema = {
   customerName: "",
   customerEmail: "",
@@ -40,9 +43,11 @@ const defaults: CheckoutFormSchema = {
 };
 
 export function CheckoutView() {
+  const router = useRouter();
   const lines = useCartStore((s) => s.lines);
   const [payError, setPayError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("wompi");
 
   const subtotal = cartSubtotal(lines);
   const total = subtotal + SHIPPING_COP;
@@ -76,6 +81,22 @@ export function CheckoutView() {
     setPayError(null);
     setSubmitting(true);
     try {
+      if (paymentMethod === "cod") {
+        const result = await submitCodOrder({
+          ...values,
+          lines,
+        });
+        if (!result.ok) {
+          setPayError(result.error);
+          setSubmitting(false);
+          return;
+        }
+        router.push(
+          `/checkout/confirmado?ref=${encodeURIComponent(result.reference)}`
+        );
+        return;
+      }
+
       const result = await prepareCheckout({
         ...values,
         lines,
@@ -112,7 +133,11 @@ export function CheckoutView() {
       setSubmitting(false);
     } catch (e) {
       console.error(e);
-      setPayError("No se pudo iniciar el pago. Intenta de nuevo.");
+      setPayError(
+        paymentMethod === "cod"
+          ? "No se pudo confirmar el pedido. Intenta de nuevo."
+          : "No se pudo iniciar el pago. Intenta de nuevo."
+      );
       setSubmitting(false);
     }
   });
@@ -261,13 +286,73 @@ export function CheckoutView() {
                 </p>
               ) : null}
 
+              <fieldset className="space-y-3">
+                <legend className="text-sm font-medium text-foreground">
+                  Método de pago
+                </legend>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label
+                    className={cn(
+                      "flex cursor-pointer flex-col gap-1 rounded-xl border p-4 text-left transition-colors",
+                      paymentMethod === "wompi"
+                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                        : "border-border bg-surface-2/40 hover:border-border/80"
+                    )}
+                  >
+                    <span className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        className="size-4 accent-primary"
+                        checked={paymentMethod === "wompi"}
+                        onChange={() => setPaymentMethod("wompi")}
+                      />
+                      <span className="font-medium text-foreground">Wompi</span>
+                    </span>
+                    <span className="pl-6 text-xs text-muted-foreground">
+                      Tarjeta, PSE u otros medios en línea.
+                    </span>
+                  </label>
+                  <label
+                    className={cn(
+                      "flex cursor-pointer flex-col gap-1 rounded-xl border p-4 text-left transition-colors",
+                      paymentMethod === "cod"
+                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                        : "border-border bg-surface-2/40 hover:border-border/80"
+                    )}
+                  >
+                    <span className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        className="size-4 accent-primary"
+                        checked={paymentMethod === "cod"}
+                        onChange={() => setPaymentMethod("cod")}
+                      />
+                      <span className="font-medium text-foreground">
+                        Pago contra entrega
+                      </span>
+                    </span>
+                    <span className="pl-6 text-xs text-muted-foreground">
+                      Pagas en efectivo al recibir tu pedido.
+                    </span>
+                  </label>
+                </div>
+              </fieldset>
+
               <Button
                 type="submit"
                 className="btn-luminal-gradient w-full font-semibold"
                 size="lg"
                 disabled={submitting}
               >
-                {submitting ? "Preparando pago…" : "Confirmar y pagar con Wompi"}
+                {submitting
+                  ? paymentMethod === "cod"
+                    ? "Enviando pedido…"
+                    : "Preparando pago…"
+                  : paymentMethod === "cod"
+                    ? "Confirmar pedido"
+                    : "Confirmar y pagar con Wompi"}
               </Button>
             </form>
           </CardContent>

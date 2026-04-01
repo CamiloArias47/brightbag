@@ -36,6 +36,7 @@ export type OrderRow = {
   department: string;
   total_amount: number;
   status: OrderStatus;
+  payment_method?: "wompi" | "cod";
   created_at: string;
 };
 

@@ -36,6 +36,8 @@ create table if not exists public.orders (
   total_amount numeric(14,2) not null check (total_amount >= 0),
   status text not null default 'pending'
     check (status in ('pending', 'approved', 'declined', 'voided')),
+  payment_method text not null default 'wompi'
+    check (payment_method in ('wompi', 'cod')),
   created_at timestamptz not null default now()
 );
 
@@ -70,3 +72,5 @@ create policy "orders_no_public" on public.orders
 
 create policy "order_items_no_public" on public.order_items
   for all using (false);
+
+-- Existing DB: run `supabase/migrations/20260331120000_orders_payment_method.sql` (or equivalent ALTER) in SQL Editor.

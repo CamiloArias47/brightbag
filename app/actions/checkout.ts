@@ -1,6 +1,7 @@
 "use server";
 
 import { SHIPPING_COP } from "@/lib/constants";
+import type { ProductRow, VariantRow } from "@/lib/types/database";
 import { copToAmountInCents } from "@/lib/wompi/amount";
 import { wompiIntegrityHex } from "@/lib/wompi/integrity";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -8,7 +9,10 @@ import { getPrimaryProductWithVariants } from "@/lib/queries/catalog";
 import { variantPriceCOP } from "@/lib/pricing";
 import type { CartLine } from "@/stores/cart-store";
 import { randomUUID } from "crypto";
-import { checkoutFormSchema, type CheckoutFormSchema } from "@/lib/validations/checkout";
+import {
+  checkoutFormSchema,
+  type CheckoutFormSchema,
+} from "@/lib/validations/checkout";
 
 export type CheckoutFormValues = CheckoutFormSchema;
 
@@ -27,9 +31,28 @@ export type PrepareCheckoutResult =
     }
   | { ok: false; error: string };
 
-export async function prepareCheckout(
+export type SubmitCodOrderResult =
+  | { ok: true; reference: string }
+  | { ok: false; error: string };
+
+type ValidatedCart =
+  | { ok: false; error: string }
+  | {
+      ok: true;
+      data: CheckoutFormSchema;
+      lines: CartLine[];
+      totalCop: number;
+      variantMap: Map<string, VariantRow>;
+      product: ProductRow;
+    };
+
+function shortRef(prefix: string): string {
+  return `${prefix}-${randomUUID().replace(/-/g, "").slice(0, 16)}`;
+}
+
+async function validateCheckoutCart(
   input: PrepareCheckoutInput
-): Promise<PrepareCheckoutResult> {
+): Promise<ValidatedCart> {
   const parsed = checkoutFormSchema.safeParse(input);
   if (!parsed.success) {
     const msg = parsed.error.issues[0]?.message ?? "Datos inválidos";
@@ -39,15 +62,6 @@ export async function prepareCheckout(
   const { lines } = input;
   if (!lines.length) {
     return { ok: false, error: "Tu carrito está vacío" };
-  }
-
-  const integritySecret = process.env.WOMPI_INTEGRITY_SECRET;
-  const publicKey = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY;
-  if (!integritySecret || !publicKey) {
-    return {
-      ok: false,
-      error: "Configuración de pagos incompleta (Wompi).",
-    };
   }
 
   const catalog = await getPrimaryProductWithVariants();
@@ -75,13 +89,27 @@ export async function prepareCheckout(
   }
 
   const totalCop = subtotal + SHIPPING_COP;
-  const amountInCents = copToAmountInCents(totalCop);
 
-  const reference = `BB-${randomUUID().replace(/-/g, "").slice(0, 16)}`;
+  return {
+    ok: true,
+    data: parsed.data,
+    lines,
+    totalCop,
+    variantMap,
+    product,
+  };
+}
+
+async function persistOrder(
+  validated: Extract<ValidatedCart, { ok: true }>,
+  reference: string,
+  paymentMethod: "wompi" | "cod"
+): Promise<{ ok: true; orderId: string } | { ok: false; error: string }> {
+  const { data, lines, totalCop, variantMap, product } = validated;
 
   const shippingAddress = {
-    line1: parsed.data.addressLine1,
-    line2: parsed.data.addressLine2 ?? "",
+    line1: data.addressLine1,
+    line2: data.addressLine2 ?? "",
     country: "CO",
   };
 
@@ -91,14 +119,15 @@ export async function prepareCheckout(
     .from("orders")
     .insert({
       wompi_reference: reference,
-      customer_name: parsed.data.customerName,
-      customer_email: parsed.data.customerEmail,
-      customer_phone: parsed.data.customerPhone,
+      customer_name: data.customerName,
+      customer_email: data.customerEmail,
+      customer_phone: data.customerPhone,
       shipping_address: shippingAddress,
-      city: parsed.data.city,
-      department: parsed.data.department,
+      city: data.city,
+      department: data.department,
       total_amount: totalCop,
       status: "pending",
+      payment_method: paymentMethod,
     })
     .select("id")
     .single();
@@ -128,6 +157,34 @@ export async function prepareCheckout(
     return { ok: false, error: "No se pudo guardar los ítems del pedido." };
   }
 
+  return { ok: true, orderId };
+}
+
+export async function prepareCheckout(
+  input: PrepareCheckoutInput
+): Promise<PrepareCheckoutResult> {
+  const validated = await validateCheckoutCart(input);
+  if (!validated.ok) {
+    return { ok: false, error: validated.error };
+  }
+
+  const integritySecret = process.env.WOMPI_INTEGRITY_SECRET;
+  const publicKey = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY;
+  if (!integritySecret || !publicKey) {
+    return {
+      ok: false,
+      error: "Configuración de pagos incompleta (Wompi).",
+    };
+  }
+
+  const reference = shortRef("BB");
+  const amountInCents = copToAmountInCents(validated.totalCop);
+
+  const persisted = await persistOrder(validated, reference, "wompi");
+  if (!persisted.ok) {
+    return { ok: false, error: persisted.error };
+  }
+
   const integrity = wompiIntegrityHex(reference, amountInCents, integritySecret);
 
   const baseUrl =
@@ -142,4 +199,21 @@ export async function prepareCheckout(
     publicKey,
     redirectUrl,
   };
+}
+
+export async function submitCodOrder(
+  input: PrepareCheckoutInput
+): Promise<SubmitCodOrderResult> {
+  const validated = await validateCheckoutCart(input);
+  if (!validated.ok) {
+    return { ok: false, error: validated.error };
+  }
+
+  const reference = shortRef("COD");
+  const persisted = await persistOrder(validated, reference, "cod");
+  if (!persisted.ok) {
+    return { ok: false, error: persisted.error };
+  }
+
+  return { ok: true, reference };
 }
